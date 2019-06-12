@@ -168,7 +168,7 @@ class Instance(Core, Base):
     @classmethod
     def addItemRecord(cls, session, instanceID, itemRec):
         instance = session.query(cls).get(instanceID)
-        instance.items.append(itemRec)
+        instance.items.add(itemRec)
 
     @classmethod
     def createNew(cls, session, instanceData):
@@ -208,6 +208,7 @@ class Instance(Core, Base):
     def update(self, session, instanceData):
         """Update an existing instance"""
         
+        self.session = session
         # Set fields targeted for works
         if self.work is not None:
             self.setWorkFields(
@@ -216,7 +217,6 @@ class Instance(Core, Base):
                 instanceData.pop('subjects', [])
             )
 
-        self.session = session
         self.createTmpRelations(instanceData)
 
         for field, value in instanceData.items():
@@ -318,6 +318,7 @@ class Instance(Core, Base):
             logger.warning('Unable to parse language {}'.format(lang))
     
     def insertItems(self):
+        setattr(self, 'epubsToLoad', [])
         for item in self.tmp_formats:
             # Check if the provided record contains an epub that can be stored
             # locally. If it does, defer insert to epub creation process
@@ -404,6 +405,11 @@ class AgentInstances(Core, Base):
         backref=backref('agent_instances', cascade='all, delete-orphan')
     )
     agent = relationship('Agent')
+
+    def __init__(self, instance=None, agent=None, role=None):
+        self.instance= instance
+        self.agent = agent
+        self.role = role
 
     @classmethod
     def roleExists(cls, session, agent, role, recordID):

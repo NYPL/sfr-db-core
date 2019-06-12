@@ -119,7 +119,6 @@ class Item(Core, Base):
         links = deque(item.pop('links', []))
         item['links'] = []
         deferredLoad = False
-        instance.epubsToLoad = []
         while len(links) > 0:
             link = links.popleft()
             url = link['url']
@@ -128,7 +127,6 @@ class Item(Core, Base):
                 try:
                     if re.search(regex, url):
                         if source in cls.EPUB_SOURCES:
-
                             # We need to get the ID of the instance to allow 
                             # for asynchronously storing the ePub file, so
                             # instance is added and flushed here
@@ -137,7 +135,12 @@ class Item(Core, Base):
                                 session.flush()
 
                             deferredLoad = True
-                            cls.createLocalEpub(item, link, instance)
+                            localPayload = cls.createLocalEpub(
+                                item,
+                                link,
+                                instance.id
+                            )
+                            instance.epubsToLoad.append(localPayload)
                             break
                 except TypeError as err:
                     logger.warning('Found link {} with no url {}'.format(
@@ -152,7 +155,7 @@ class Item(Core, Base):
         return None
 
     @classmethod
-    def createLocalEpub(cls, item, link, instance):
+    def createLocalEpub(cls, item, link, instanceID):
         """Pass new item to epub storage pipeline. Does not store item record
         at this time, but defers until epub has been processed.
         The payload object takes several parameters:
@@ -164,7 +167,7 @@ class Item(Core, Base):
         putItem['links'] = [link]
         epubPayload = {
             'url': link['url'],
-            'id': instance.id,
+            'id': instanceID,
             'updated': item['modified'],
             'data': putItem
         }
@@ -173,7 +176,7 @@ class Item(Core, Base):
             if measure['quantity'] == 'bytes':
                 epubPayload['size'] = measure['value']
                 break
-        instance.epubsToLoad.append(epubPayload)
+        return epubPayload
 
     @classmethod
     def updateOrInsert(cls, session, itemData):
@@ -418,6 +421,11 @@ class AgentItems(Core, Base):
         backref=backref('agent_items', cascade='all, delete-orphan')
     )
     agent = relationship('Agent')
+
+    def __init__(self, item=None, agent=None, role=None):
+        self.item = item
+        self.agent = agent
+        self.role = role
 
     @classmethod
     def roleExists(cls, session, agent, role, recordID):
