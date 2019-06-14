@@ -141,7 +141,7 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(testAgent.sort_name, 'New, Name')
 
     
-    @patch.object(Agent, 'findJaroWinklerQuery', return_value='mockAgent')
+    @patch.object(Agent, 'textMatchQuery', return_value='mockAgent')
     @patch.object(Agent, 'findViafQuery', return_value=None)
     def test_agent_lookup_name(self, mock_viaf, mock_auth):
         testAgent = Agent()
@@ -170,24 +170,21 @@ class TestAgent(unittest.TestCase):
         mock_session = MagicMock()
         mock_session.query().filter().one.return_value = 'mockAgent'
         testAgent = Agent(mock_session)
-        testAgent.name = 'O\'Tester, Test'
-        matchAgent = testAgent.findJaroWinklerQuery()
+        matchAgent = testAgent.findJaroWinklerQuery('O\'Tester, Test')
         self.assertEqual(matchAgent, 'mockAgent')
 
     def test_jw_query_multiple_error(self):
         mock_session = MagicMock()
         mock_session.query().filter().one.side_effect = MultipleResultsFound
         testAgent = Agent(mock_session)
-        testAgent.name = 'Tester, Test'
-        manyMatches = testAgent.findJaroWinklerQuery()
+        manyMatches = testAgent.findJaroWinklerQuery('Tester, Test')
         self.assertEqual(manyMatches, None)
     
     def test_jw_query_single_error(self):
         mock_session = MagicMock()
         mock_session.query().filter().one.side_effect = NoResultFound
         testAgent = Agent(mock_session)
-        testAgent.name = 'Tester, Test'
-        noMatches = testAgent.findJaroWinklerQuery()
+        noMatches = testAgent.findJaroWinklerQuery('Tester, Test')
         self.assertEqual(noMatches, None)
     
     
