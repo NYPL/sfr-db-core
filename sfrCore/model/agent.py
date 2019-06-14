@@ -228,12 +228,14 @@ class Agent(Core, Base):
     def textMatchQuery(self):
         logger.debug('Matching agent by exact search, then jaro_winkler score')
         escapedName = self.name.replace('\'', '\'\'')
+        exactNameQ = self.session.query(Agent.id)\
+            .filter(Agent.name == escapedName)
         try:
-            return self.session.query(Agent.id)\
-                .filter(Agent.name == escapedName)\
-                .first()
+            return exactNameQ.one()
+        except MultipleResultsFound:
+            return exactNameQ.first()
         except NoResultFound:
-            self.findJaroWinklerQuery(escapedName)
+            return self.findJaroWinklerQuery(escapedName)
 
     def findJaroWinklerQuery(self, escapedName):
         logger.debug('Matching agent based off jaro_winkler score')
