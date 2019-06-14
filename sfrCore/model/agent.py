@@ -213,7 +213,7 @@ class Agent(Core, Base):
             agentRec = self.findViafQuery()
         
         if agentRec is None:
-            agentRec = self.findJaroWinklerQuery()
+            agentRec = self.textMatchQuery()
 
         return agentRec
 
@@ -225,10 +225,19 @@ class Agent(Core, Base):
                 'date_type': dateType
             })
 
-    def findJaroWinklerQuery(self):
+    def textMatchQuery(self):
+        logger.debug('Matching agent by exact search, then jaro_winkler score')
+        escapedName = self.name.replace('\'', '\'\'')
+        try:
+            return self.session.query(Agent.id)\
+                .filter(Agent.name == escapedName)\
+                .first()
+        except NoResultFound:
+            self.findJaroWinklerQuery(escapedName)
+
+    def findJaroWinklerQuery(self, escapedName):
         logger.debug('Matching agent based off jaro_winkler score')
         
-        escapedName = self.name.replace('\'', '\'\'')
         try:
             jaroWinklerQ = text(
                 "jarowinkler({}, '{}') > {}".format('name', escapedName, 0.95)
