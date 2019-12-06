@@ -3,6 +3,7 @@ from binascii import Error as base64Error
 import boto3
 from botocore.exceptions import ClientError
 import os
+from psycopg2 import connect
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -24,18 +25,29 @@ class SessionManager():
 
         self.logger = createLog('dbManager')
 
+    def createConn(self, connURI):
+        dbString = 'postgresql://{}:{}@{}:{},{}:{}'.format(
+            self.user, self.pswd, self.host, self.port, self.roHost, self.port
+        )
+        dbWithCreds = '{}/{}'.format(dbString, self.db)
+        return connect(dbWithCreds)
+
     def generateEngine(self):
-        dbString = 'postgresql://{}:{},{}:{}'.format(
-            self.host, self.port, self.roHost, self.port
-        )
-        dbWithCreds = '{}/{}?user={}&password={}'.format(
-            dbString, self.db, self.user, self.pswd
-        )
-        dbWithParams = '{}&loginTimeout=2&connectTimeout=2&cancelSignalTimeout=2&socketTimeout=60&tcpKeepAlive=true&targetServerType=master&loadBalanceHosts=true'.format(
-            dbWithCreds
-        )
+        connArgs = {
+            'connectTimeout': 2,
+            'loginTimeout': 2,
+            'cancelSignalTimeout': 2,
+            'socketTimeout': 60,
+            'tcpKeepAlive': True,
+            'targetServerType': 'master',
+            'loadBalanceHosts': True
+        }
         try:
-            self.engine = create_engine(dbWithParams)
+            self.engine = create_engine(
+                'postgres://',
+                creator=self.createConn,
+                connect_args=connArgs
+            )
             self.engine.execute(text(
                 'SET statement_timeout TO \'30s\'; SET lock_timeout TO\'15s\';'
             ))
