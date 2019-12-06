@@ -11,10 +11,11 @@ from ..helpers import createLog
 
 
 class SessionManager():
-    def __init__(self, user=None, pswd=None, host=None, port=None, db=None):
+    def __init__(self, user=None, pswd=None, host=None, roHost=None, port=None, db=None):
         self.user = user if user else SessionManager.decryptEnvVar('DB_USER')
         self.pswd = pswd if pswd else SessionManager.decryptEnvVar('DB_PSWD')
         self.host = host if host else SessionManager.decryptEnvVar('DB_HOST')
+        self.roHost = host if host else SessionManager.decryptEnvVar('DB_READ_HOST')
         self.port = port if port else SessionManager.decryptEnvVar('DB_PORT')
         self.db = db if db else SessionManager.decryptEnvVar('DB_NAME')
 
@@ -24,16 +25,17 @@ class SessionManager():
         self.logger = createLog('dbManager')
 
     def generateEngine(self):
+        dbString = 'postgresql://{}:{},{}:{}'.format(
+            self.host, self.port, self.roHost, self.port
+        )
+        dbWithCreds = '{}/{}?user={}&password={}'.format(
+            dbString, self.db, self.user, self.pswd
+        )
+        dbWithParams = '{}&loginTimeout=2&connectTimeout=2&cancelSignalTimeout=2&socketTimeout=60&tcpKeepAlive=true&targetServerType=master&loadBalanceHosts=true'.format(
+            dbWithCreds
+        )
         try:
-            self.engine = create_engine(
-                'postgresql://{}:{}@{}:{}/{}'.format(
-                    self.user,
-                    self.pswd,
-                    self.host,
-                    self.port,
-                    self.db
-                )
-            )
+            self.engine = create_engine(dbWithParams)
             self.engine.execute(text(
                 'SET statement_timeout TO \'30s\'; SET lock_timeout TO\'15s\';'
             ))
