@@ -29,28 +29,15 @@ class SessionManager():
         dbString = 'postgresql://{}:{}@{}:{},{}:{}'.format(
             self.user, self.pswd, self.host, self.port, self.roHost, self.port
         )
-        dbWithCreds = '{}/{}'.format(dbString, self.db)
+        dbWithCreds = '{}/{}?connect_timeout=2'.format(dbString, self.db)
         return connect(dbWithCreds)
 
     def generateEngine(self):
-        connArgs = {
-            'connectTimeout': 2,
-            'loginTimeout': 2,
-            'cancelSignalTimeout': 2,
-            'socketTimeout': 60,
-            'tcpKeepAlive': True,
-            'targetServerType': 'master',
-            'loadBalanceHosts': True
-        }
         try:
             self.engine = create_engine(
                 'postgres://',
-                creator=self.createConn,
-                connect_args=connArgs
+                creator=self.createConn
             )
-            self.engine.execute(text(
-                'SET statement_timeout TO \'30s\'; SET lock_timeout TO\'15s\';'
-            ))
         except Exception as e:
             self.logger.error(e)
             raise e
@@ -63,6 +50,9 @@ class SessionManager():
         if not self.engine:
             self.generateEngine()
         self.session = sessionmaker(bind=self.engine, autoflush=autoflush)()
+        self.session.execute(text(
+            'SET statement_timeout TO \'20s\'; SET lock_timeout TO\'10s\';'
+        ))
         return self.session
 
     def startSession(self):
